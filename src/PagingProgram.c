@@ -26,7 +26,7 @@ typedef struct {
 //Returns: number of page faults
 int FIFO(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *pages, int numPages);
 
-int pageIn_Optimal(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *pages, int numPages);
+int Optimal(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *pages, int numPages);
 
 //Selects a unoccupied frame or oldest page in a frame then pages out and pages in
 void pageIn_FIFO(Frame *frames, int numFrames, Page *pages, int currentRef);
@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
 
 
   //maxPageReferenced + 1 because we want the largest referenced number to be
-  //addressible like pages[maxPageReferenced]
+  //addressable like pages[maxPageReferenced]
   numPages = maxPageReferenced + 1;
 
   //create dynamic array of pages
@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
   //set refIndex for each page
   for(index = 0;index < numRefs; ++index) {
     tmp = pageRefs[index];
-    pages[tmp].refIndex[pages[tmp].currentIndex++];
+    pages[tmp].refIndex[pages[tmp].currentIndex++] = index;
   }
 
 
@@ -139,7 +139,7 @@ void  pageIn_FIFO(Frame *frames, int numFrames, Page *pages, int currentRef) {
       freedFrame = i;
       break;
     } else {
-      //check if frame has the oldest page incase we need a victim page
+      //check if frame has the oldest page in case we need a victim page
       if(frames[i].pagedInTime != 0 && frames[i].pagedInTime < victimTime) {
 	freedFrame = i;
       }
@@ -170,7 +170,7 @@ int FIFO(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *p
     currentRef = pageReferences[i];
     if(pages[currentRef].isPagedIn != true) {
 
-      /* page fault has occured
+      /* page fault has occurred
 	 page in new page */
 
       pagefaults++;
@@ -180,6 +180,22 @@ int FIFO(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *p
   return pagefaults;
 }
 
-int pageIn_Optimal(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *pages, int numPages){
-  return 0;
+void pageIn_Optimal(Frame *frames, int numFrames, Page *pages, int numPages) {
+
+}
+
+int Optimal(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *pages, int numPages){
+	int i, pagefaults = 0;
+	int currentRef;
+	for(i = 0;i < numRefs; ++i) {
+		currentRef = pageReferences[i];
+		if(pages[currentRef].isPagedIn != true) {
+			/* page fault has occurred */
+			pagefaults++;
+			/* page in new page */
+			pageIn_Optimal(frames, numFrames, pages, numPages);
+		}
+	}
+
+	return pagefaults;
 }
