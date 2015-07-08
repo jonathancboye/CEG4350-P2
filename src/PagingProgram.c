@@ -2,6 +2,7 @@
 	Author: Jonathan Carpenter
 	class: CEG4350 Summer 2015
 	project 2
+	Email: carpenter.prime@gmail.com
 */
 #include <stdio.h>
 #include <stdlib.h>
