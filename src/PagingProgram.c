@@ -145,7 +145,7 @@ void initialize(int **pageRefs, int numRefs, Page **pages, int *numPages,
 	/* set refIndex for pages */
 
 	//create dynamic array of pages
-	*pages = calloc(numPages, sizeof(Page));
+	*pages = calloc(*numPages, sizeof(Page));
 	for(index = 0;index < *numPages; ++index) {
 		Page p;
 		p.pageNum = index;
