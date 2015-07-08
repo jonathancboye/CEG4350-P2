@@ -30,7 +30,7 @@ typedef struct {
 void swapPageIn(Frame *frame, Page *pageOut, Page *pageIn, int *counter);
 //Returns: number of page faults for a given paging algorithm
 int getPagefaults(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *pages, int numPages,
-		int (*pageingAlgorithm)(Frame*, int, Page*, int, int*));
+		void (*pageingAlgorithm)(Frame*, int, Page*, int, int*));
 //Selects a unoccupied frame or oldest page in a frame then pages out and pages in
 void FIFO(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter);
 //Selects a unoccupied frame or a frame with a page that is going to be referenced more further from the current referenced page
@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
 
   int pagefaults;
   int numAlgorithms = 5;
-  int (**pageingAlgorithms)(Frame*, int, Page*, int, int*) =
+  void (**pageingAlgorithms)(Frame*, int, Page*, int, int*) =
 		  calloc( numAlgorithms, sizeof(int (*)(Frame*, int, Page*, int, int*)));
   pageingAlgorithms[0] = FIFO;
   pageingAlgorithms[1] = Optimal;
@@ -145,7 +145,7 @@ void initialize(int **pageRefs, int numRefs, Page **pages, int *numPages,
 	/* set refIndex for pages */
 
 	//create dynamic array of pages
-	*pages = calloc(numPages, sizeof(Page));
+	*pages = calloc(*numPages, sizeof(Page));
 	for(index = 0;index < *numPages; ++index) {
 		Page p;
 		p.pageNum = index;
@@ -187,7 +187,7 @@ void initialize(int **pageRefs, int numRefs, Page **pages, int *numPages,
 
 //Implementing a priority queue would be useful for this function
 int getPagefaults(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *pages, int numPages,
-		int (*pageingAlgorithm)(Frame*, int, Page*, int, int*)) {
+		void (*pageingAlgorithm)(Frame*, int, Page*, int, int*)) {
   int i, pagefaults = 0;
   int currentRef;
   int counter = 1;
