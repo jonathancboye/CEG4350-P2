@@ -41,24 +41,44 @@ void LRU(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter
 void LFU(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter);
 //Selects a unoccupied frame or a frame with a page that has been used the most
 void MFU(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter);
-
+//Initialize variables
+void initialize(int **pageRefs, int numRefs, Page **pages, int *numPages,
+				Frame **frames, int numFrames, int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
 
   int index; //index for looping
-  int maxPageReferenced = 0; //largest number in page reference sequence
-  int tmp; //temporary value
 
-  int numRefs; //number of page references
-  int *pageRefs; //dynamic array of page references
+  int numRefs = 0; //number of page references
+  int *pageRefs = NULL; //dynamic array of page references
 
-  int numFrames; //number of frames
-  Frame *frames; //dynamic arrray of frames
+  int numFrames = 0; //number of frames
+  Frame *frames = NULL; //dynamic arrray of frames
 
-  int numPages; //number of pages
-  Page *pages; //dynamic array of pages
+  int numPages = 0; //number of pages
+  Page *pages = NULL; //dynamic array of pages
 
-  int (*pageingAlgorithm)(Frame*, int, Page*, int, int*);
+  int pagefaults;
+  int numAlgorithms = 5;
+  int (**pageingAlgorithms)(Frame*, int, Page*, int, int*) =
+		  calloc( numAlgorithms, sizeof(int (*)(Frame*, int, Page*, int, int*)));
+  pageingAlgorithms[0] = FIFO;
+  pageingAlgorithms[1] = Optimal;
+  pageingAlgorithms[2] = LRU;
+  pageingAlgorithms[3] = LFU;
+  pageingAlgorithms[4] = MFU;
+
+  char **algorithmNames = calloc(numAlgorithms, sizeof(char*));
+  char *fifo = "FIFO";
+  char *optimal = "Optimal";
+  char *lru = "LRU";
+  char *lfu = "LFU";
+  char *mfu = "MFU";
+  algorithmNames[0] = fifo;
+  algorithmNames[1] = optimal;
+  algorithmNames[2] = lru;
+  algorithmNames[3] = lfu;
+  algorithmNames[4] = mfu;
 
   //check command line arguments
   if(argc < 3) {
@@ -71,73 +91,15 @@ int main(int argc, char *argv[]) {
   numFrames = atoi(argv[1]);   //get number of frames from command line
   numRefs = argc - 2;
 
-  //create dynamic array of page references
-  pageRefs = calloc(numRefs, sizeof(int));
-  for(index = 2; index < argc; ++index) {
-    tmp = atoi(argv[index]);
-    if(maxPageReferenced < tmp){
-      maxPageReferenced = tmp;
-    }
-    pageRefs[index - 2] = tmp;
-  };
-
-
-  //maxPageReferenced + 1 because we want the largest referenced number to be
-  //addressible like pages[maxPageReferenced]
-  numPages = maxPageReferenced + 1;
-
-  //create dynamic array of pages
-  pages = calloc(numPages, sizeof(Page));
-  for(index = 0;index < numPages; ++index) {
-    Page p;
-    p.pageNum = index;
-    p.isPagedIn = false;
-    p.nextIndex = 0;
-    p.numRefs = 0;
-    p.lastTimeUsed = 0;
-    p.count = 0;
-    pages[index] = p;
+  for(index = 0; index < numAlgorithms; ++index) {
+	  initialize(&pageRefs, numRefs, &pages, &numPages, &frames, numFrames, argc, argv);
+	  pagefaults = getPagefaults(pageRefs, numRefs, frames, numFrames, pages, numPages, pageingAlgorithms[index]);
+	  printf("Algorithm: %s, Page faults: %d\n",algorithmNames[index], pagefaults);
+	  free(pageRefs);
+	  free(frames);
+	  free(pages);
   }
-
-  /* set refIndex for pages */
-
-  //set numRefs for each page
-  for(index = 0; index < numRefs; ++index) {
-    tmp = pageRefs[index];
-    pages[tmp].numRefs++;
-  }
-  //allocate memory for the reference index of each page
-  for(index = 0; index < numPages; ++index) {
-    pages[index].refIndex = calloc(pages[index].numRefs, sizeof(int));
-  }
-  //set refIndex for each page
-  for(index = 0;index < numRefs; ++index) {
-    tmp = pageRefs[index];
-    pages[tmp].refIndex[pages[tmp].nextIndex++] = index;
-  }
-  //initialize currentIndex to 0 for all pages
-  for(index = 0;index < numPages; ++index) {
-	 pages[index].nextIndex = 0;
-  }
-  //create dynamic array of frames
-  frames = calloc(numFrames, sizeof(Frame));
-  for(index = 0; index < numFrames; ++index) {
-    Frame frame;
-    frame.hasPage = false;
-    frame.counter = 0;
-    frame.pageNum = -1;
-    frames[index] = frame;
-  }
-
-  pageingAlgorithm = MFU;
-  int pagefaults = getPagefaults(pageRefs, numRefs, frames, numFrames, pages, numPages, pageingAlgorithm);
-
-  printf("Page faults: %d\n", pagefaults);
-
-  free(pageRefs);
-  free(frames);
-  free(pages);
-
+  free(pageingAlgorithms);
   return EXIT_SUCCESS;
 }
 
@@ -160,6 +122,67 @@ void swapPageIn(Frame *frame, Page *pageOut, Page *pageIn, int *counter){
 	frame -> hasPage = true;
 	frame -> pageNum = pageIn -> pageNum;
 	pageIn -> isPagedIn = true;
+}
+
+void initialize(int **pageRefs, int numRefs, Page **pages, int *numPages,
+				Frame **frames, int numFrames, int argc, char *argv[]) {
+	int index,tmp;
+	int maxPageReferenced = 0;
+	//create dynamic array of page references
+	*pageRefs = calloc(numRefs, sizeof(int));
+	for(index = 2; index < argc; ++index) {
+		tmp = atoi(argv[index]);
+		if(maxPageReferenced < tmp){
+			maxPageReferenced = tmp;
+		}
+		(*pageRefs)[index - 2] = tmp;
+	};
+
+	//maxPageReferenced + 1 because we want the largest referenced number to be
+	//addressible like pages[maxPageReferenced]
+	*numPages = maxPageReferenced + 1;
+
+	/* set refIndex for pages */
+
+	//create dynamic array of pages
+	*pages = calloc(numPages, sizeof(Page));
+	for(index = 0;index < *numPages; ++index) {
+		Page p;
+		p.pageNum = index;
+		p.isPagedIn = false;
+		p.nextIndex = 0;
+		p.numRefs = 0;
+		p.lastTimeUsed = 0;
+		p.count = 0;
+		(*pages)[index] = p;
+	}
+	//set numRefs for each page
+	for(index = 0; index < numRefs; ++index) {
+		tmp = (*pageRefs)[index];
+		(*pages)[tmp].numRefs++;
+	}
+	//allocate memory for the reference index of each page
+	for(index = 0; index < *numPages; ++index) {
+		(*pages)[index].refIndex = calloc((*pages)[index].numRefs, sizeof(int));
+	}
+	//set refIndex for each page
+	for(index = 0;index < numRefs; ++index) {
+		tmp = (*pageRefs)[index];
+		(*pages)[tmp].refIndex[(*pages)[tmp].nextIndex++] = index;
+	}
+	//initialize currentIndex to 0 for all pages
+	for(index = 0;index < *numPages; ++index) {
+		(*pages)[index].nextIndex = 0;
+	}
+	//create dynamic array of frames
+	*frames = calloc(numFrames, sizeof(Frame));
+	for(index = 0; index < numFrames; ++index) {
+		Frame frame;
+		frame.hasPage = false;
+		frame.counter = 0;
+		frame.pageNum = -1;
+		(*frames)[index] = frame;
+	}
 }
 
 //Implementing a priority queue would be useful for this function
