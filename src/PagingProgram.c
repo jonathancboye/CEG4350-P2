@@ -25,16 +25,14 @@ typedef struct {
   bool hasPage; //true if page is in frame else false
 } Frame;
 
-//FIFO paging algorithm
-//Returns: number of page faults
-int FIFO(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *pages, int numPages);
+//Returns: number of page faults for a given paging algorithm
+int getPagefaults(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *pages, int numPages,
+		int (*pageingAlgorithm)(Frame*, int, Page*, int, int*));
 
 //Selects a unoccupied frame or oldest page in a frame then pages out and pages in
-void pageIn_FIFO(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter);
-
-
-int Optimal(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *pages, int numPages);
-
+void FIFO(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter);
+//Selects a unoccupied frame or a frame with a page that is going to be referenced more further from the current referenced page
+void Optimal(Frame *frames, int numFrames, Page *pages, int currentRef, int* counter);
 
 int main(int argc, char *argv[]) {
 
@@ -51,7 +49,7 @@ int main(int argc, char *argv[]) {
   int numPages; //number of pages
   Page *pages; //dynamic array of pages
 
-  //int (*pageingAlgorithm)(Frame*, int, Page*, int, int*);
+  int (*pageingAlgorithm)(Frame*, int, Page*, int, int*);
 
   //check command line arguments
   if(argc < 3) {
@@ -120,8 +118,8 @@ int main(int argc, char *argv[]) {
     frames[index] = frame;
   }
 
-
-  int pagefaults = Optimal(pageRefs, numRefs, frames, numFrames, pages, numPages);
+  pageingAlgorithm = Optimal;
+  int pagefaults = getPagefaults(pageRefs, numRefs, frames, numFrames, pages, numPages, pageingAlgorithm);
 
   printf("Page faults: %d\n", pagefaults);
 
@@ -150,7 +148,7 @@ void swapPageIn(Frame *frame, Page *pageOut, Page *pageIn, int *counter){
 }
 
 //place page in a frame with first in first out algorithm
-void  pageIn_FIFO(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter) {
+void FIFO(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter) {
   int i, victimPage;
   double victimTime = (*counter)++;
   int freedFrame;
@@ -174,7 +172,8 @@ void  pageIn_FIFO(Frame *frames, int numFrames, Page *pages, int currentRef, int
 }
 
 //Implementing a priority queue would be useful for this function
-int FIFO(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *pages, int numPages) {
+int getPagefaults(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *pages, int numPages,
+		int (*pageingAlgorithm)(Frame*, int, Page*, int, int*)) {
   int i, pagefaults = 0;
   int currentRef;
   int counter = 1;
@@ -187,14 +186,14 @@ int FIFO(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *p
       /* page fault has occurred
 	 page in new page */
       pagefaults++;;
-      pageIn_FIFO(frames, numFrames, pages, currentRef, &counter);
+      pageingAlgorithm(frames, numFrames, pages, currentRef, &counter);
       }
     }
 
   return pagefaults;
 }
 
-void pageIn_Optimal(Frame *frames, int numFrames, Page *pages, int currentRef) {
+void Optimal(Frame *frames, int numFrames, Page *pages, int currentRef, int* counter) {
 	int i, pageNumber;
 	int nextIndex; // a page's nextIndex
 	int nextPageReference; // the page's next reference
@@ -229,20 +228,4 @@ void pageIn_Optimal(Frame *frames, int numFrames, Page *pages, int currentRef) {
 		}
 	}
 	swapPageIn(&frames[i], pageOut, pageIn, NULL);
-}
-
-int Optimal(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *pages, int numPages){
-	int i, currentRef, pagefaults = 0;
-
-	for(i = 0; i < numRefs; ++i) {
-		currentRef = pageReferences[i];
-		//check if page is in frame
-		if(pages[currentRef].isPagedIn != true) {
-			//page fault has occurred
-			pagefaults++;
-			//place page in a frame with optimal algorithm
-			pageIn_Optimal(frames, numFrames, pages, currentRef);
-			}
-		}
-	return pagefaults;
 }
