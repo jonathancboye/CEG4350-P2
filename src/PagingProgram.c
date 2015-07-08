@@ -15,8 +15,9 @@ typedef struct {
   int pageNum;
   int *refIndex; //Indexes of page in reference string
   int numRefs; //Number of references in refIndex
-  int nextIndex; //last used reference in refIndex
+  int nextIndex; //index of refIndex giving the location of the next time the page will be referenced
   int lastTimeUsed; //last time the page was referenced
+  int count; //Number of times page has been referenced
 }Page;
 
 typedef struct {
@@ -36,8 +37,11 @@ void FIFO(Frame *frames, int numFrames, Page *pages, int currentRef, int *counte
 void Optimal(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter);
 //Selects a unoccupied frame or a frame with a page that has not been used for the longest period of time
 void LRU(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter);
-
+//Selects a unoccupied frame or a frame with a page that has been used the least
 void LFU(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter);
+//Selects a unoccupied frame or a frame with a page that has been used the most
+void MFU(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter);
+
 
 int main(int argc, char *argv[]) {
 
@@ -91,6 +95,7 @@ int main(int argc, char *argv[]) {
     p.nextIndex = 0;
     p.numRefs = 0;
     p.lastTimeUsed = 0;
+    p.count = 0;
     pages[index] = p;
   }
 
@@ -124,7 +129,7 @@ int main(int argc, char *argv[]) {
     frames[index] = frame;
   }
 
-  pageingAlgorithm = LRU;
+  pageingAlgorithm = MFU;
   int pagefaults = getPagefaults(pageRefs, numRefs, frames, numFrames, pages, numPages, pageingAlgorithm);
 
   printf("Page faults: %d\n", pagefaults);
@@ -167,8 +172,9 @@ int getPagefaults(int *pageReferences, int numRefs, Frame *frames, int numFrames
   for(i = 0;i < numRefs; ++i) {
     currentRef = pageReferences[i];
     pages[currentRef].lastTimeUsed = counter++;
+    pages[currentRef].count++;
     //check if page is not in frame
-    if(pages[currentRef].isPagedIn != true) {
+    if(pages[currentRef].isPagedIn == false) {
 
       /* page fault has occurred
 	 page in new page */
@@ -182,7 +188,7 @@ int getPagefaults(int *pageReferences, int numRefs, Frame *frames, int numFrames
 //place page in a frame with first in first out algorithm
 void FIFO(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter) {
   int i, victimPage;
-  double victimTime = (*counter)++;
+  int victimTime = (*counter)++;
   int freedFrame;
 
   for(i = 0; i < numFrames; ++i) {
@@ -256,4 +262,42 @@ void LRU(Frame *frames, int numFrames, Page *pages, int currentRef, int* counter
 	}
 	victimPage = frames[freedFrame].pageNum;
 	swapPageIn(&frames[freedFrame], &pages[victimPage], &pages[currentRef], counter);
+}
+
+void LFU(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter) {
+	int i, freedFrame, pageCount = *counter, pageNumber;
+	//check if frame is empty
+	for(i = 0;i < numFrames;++i) {
+		if(frames[i].hasPage == false) {
+			swapPageIn(&frames[i], NULL, &pages[currentRef], counter);
+			return;
+		}
+		//check if frame has the page with the least frequently used page
+		pageNumber = frames[i].pageNum;
+		if(pages[pageNumber].count < pageCount) {
+			freedFrame = i;
+			pageCount = pages[pageNumber].count;
+		}
+	}
+	pageNumber = frames[freedFrame].pageNum;
+	swapPageIn(&frames[freedFrame], &pages[pageNumber], &pages[currentRef], counter);
+}
+
+void MFU(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter) {
+	int i, freedFrame, pageCount = 0, pageNumber;
+	//check if frame is empty
+	for(i = 0;i < numFrames;++i) {
+		if(frames[i].hasPage == false) {
+			swapPageIn(&frames[i], NULL, &pages[currentRef], counter);
+			return;
+		}
+		//check if frame has the page with the most frequently used page
+		pageNumber = frames[i].pageNum;
+		if(pages[pageNumber].count > pageCount) {
+			freedFrame = i;
+			pageCount = pages[pageNumber].count;
+		}
+	}
+	pageNumber = frames[freedFrame].pageNum;
+	swapPageIn(&frames[freedFrame], &pages[pageNumber], &pages[currentRef], counter);
 }
