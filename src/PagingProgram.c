@@ -25,14 +25,19 @@ typedef struct {
   bool hasPage; //true if page is in frame else false
 } Frame;
 
+//swaps out victim page of frame if frame is occupied then brings in new page
+void swapPageIn(Frame *frame, Page *pageOut, Page *pageIn, int *counter);
 //Returns: number of page faults for a given paging algorithm
 int getPagefaults(int *pageReferences, int numRefs, Frame *frames, int numFrames, Page *pages, int numPages,
 		int (*pageingAlgorithm)(Frame*, int, Page*, int, int*));
-
 //Selects a unoccupied frame or oldest page in a frame then pages out and pages in
 void FIFO(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter);
 //Selects a unoccupied frame or a frame with a page that is going to be referenced more further from the current referenced page
-void Optimal(Frame *frames, int numFrames, Page *pages, int currentRef, int* counter);
+void Optimal(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter);
+//Selects a unoccupied frame or a frame with a page that has not been used for the longest period of time
+void LRU(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter);
+
+void LFU(Frame *frames, int numFrames, Page *pages, int currentRef, int *counter);
 
 int main(int argc, char *argv[]) {
 
@@ -119,7 +124,7 @@ int main(int argc, char *argv[]) {
     frames[index] = frame;
   }
 
-  pageingAlgorithm = Optimal;
+  pageingAlgorithm = LRU;
   int pagefaults = getPagefaults(pageRefs, numRefs, frames, numFrames, pages, numPages, pageingAlgorithm);
 
   printf("Page faults: %d\n", pagefaults);
@@ -161,6 +166,7 @@ int getPagefaults(int *pageReferences, int numRefs, Frame *frames, int numFrames
 
   for(i = 0;i < numRefs; ++i) {
     currentRef = pageReferences[i];
+    pages[currentRef].lastTimeUsed = counter++;
     //check if page is not in frame
     if(pages[currentRef].isPagedIn != true) {
 
@@ -184,15 +190,14 @@ void FIFO(Frame *frames, int numFrames, Page *pages, int currentRef, int *counte
     if(frames[i].hasPage == false) {
     	swapPageIn(&frames[i], NULL, &pages[currentRef], counter);
     	return;
-    } else {
-      //check if frame has the oldest page in case we need a victim page
-      if(frames[i].counter != 0 && frames[i].counter < victimTime) {
-    	  freedFrame = i;
-    	  victimTime = frames[i].counter;
-      }
     }
-  }
+    //check if frame has the oldest page in case we need a victim page
+    if(frames[i].counter < victimTime) {
+    	freedFrame = i;
+    	victimTime = frames[i].counter;
+    }
 
+  }
   victimPage = frames[freedFrame].pageNum;
   swapPageIn(&frames[freedFrame], &pages[victimPage], &pages[currentRef], counter);
 }
@@ -224,7 +229,7 @@ void Optimal(Frame *frames, int numFrames, Page *pages, int currentRef, int* cou
 			swapPageIn(&frames[i], p, pageIn, NULL);
 			return;
 		}
-
+		//check if page is the one not referenced for the longest period of time
 		if(nextPageReference > maxReference) {
 			pageOut = p;
 			maxReference = nextPageReference;
@@ -233,4 +238,22 @@ void Optimal(Frame *frames, int numFrames, Page *pages, int currentRef, int* cou
 	swapPageIn(&frames[i], pageOut, pageIn, NULL);
 }
 
+void LRU(Frame *frames, int numFrames, Page *pages, int currentRef, int* counter) {
+	int i, freedFrame, pageNumber, victimPage,  victimTime = (*counter)++;
 
+	for(i = 0;i < numFrames; ++i) {
+		//check if frame is empty
+		if(frames[i].hasPage == false) {
+			swapPageIn(&frames[i], NULL, &pages[currentRef], counter);
+			return;
+		}
+		//check if frame has the page that has not been used for the longest period of time
+		pageNumber = frames[i].pageNum;
+		if(pages[pageNumber].lastTimeUsed < victimTime) {
+			freedFrame = i;
+			victimTime = pages[pageNumber].lastTimeUsed;
+		}
+	}
+	victimPage = frames[freedFrame].pageNum;
+	swapPageIn(&frames[freedFrame], &pages[victimPage], &pages[currentRef], counter);
+}
